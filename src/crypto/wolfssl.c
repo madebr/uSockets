@@ -25,6 +25,8 @@
 
 #include <wolfssl/ssl.h>
 
+#include <string.h>
+
 // shared somewhat
 #define OPENSSL_init_ssl(a, b) wolfSSL_Init()
 #define SSL_in_init(x) (!wolfSSL_is_init_finished(x))
@@ -107,6 +109,10 @@ struct us_internal_ssl_socket_t *ssl_on_close(struct us_internal_ssl_socket_t *s
     wolfSSL_free(s->ssl);
 
     return context->on_close(s);
+}
+
+struct us_internal_ssl_socket_t *us_internal_ssl_socket_close(struct us_internal_ssl_socket_t *s) {
+    return (struct us_internal_ssl_socket_t *) us_socket_close(0, (struct us_socket_t *) s);
 }
 
 struct us_internal_ssl_socket_t *ssl_on_end(struct us_internal_ssl_socket_t *s) {
@@ -432,7 +438,7 @@ void us_internal_ssl_socket_context_on_open(struct us_internal_ssl_socket_contex
     context->on_open = on_open;
 }
 
-void us_internal_ssl_socket_context_on_close(struct us_internal_ssl_socket_context_t *context, struct us_internal_ssl_socket_t *(*on_close)(struct us_internal_ssl_socket_t *s)) {
+void us_internal_ssl_socket_context_on_close(struct us_internal_ssl_socket_context_t *context, struct us_internal_ssl_socket_t *(*on_close)(struct us_internal_ssl_socket_t *s, int code, void *reason)) {
     us_socket_context_on_close(0, (struct us_socket_context_t *) context, (struct us_socket_t *(*)(struct us_socket_t *)) ssl_on_close);
     context->on_close = on_close;
 }
@@ -555,10 +561,6 @@ void us_internal_ssl_socket_shutdown(struct us_internal_ssl_socket_t *s) {
             us_socket_shutdown(0, &s->s);
         }
     }
-}
-
-struct us_internal_ssl_socket_t *us_internal_ssl_socket_close(struct us_internal_ssl_socket_t *s) {
-    return (struct us_internal_ssl_socket_t *) us_socket_close(0, (struct us_socket_t *) s);
 }
 
 struct us_internal_ssl_socket_t *us_internal_ssl_socket_context_adopt_socket(struct us_internal_ssl_socket_context_t *context, struct us_internal_ssl_socket_t *s, int ext_size) {
