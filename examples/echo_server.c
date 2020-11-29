@@ -15,7 +15,7 @@ struct echo_socket {
 
 /* Our socket context extension */
 struct echo_context {
-
+    char dummy_;
 };
 
 /* Loop wakeup handler */
