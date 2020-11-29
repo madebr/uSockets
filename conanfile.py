@@ -23,7 +23,7 @@ class USocketsConan(ConanFile):
         "wolfssl:opensslextra": True,
     }
 
-    generators = "cmake", "pkg_config"
+    generators = "cmake", "pkg_config", "cmake_find_package"
 
     def export_source(self):
         self.copy("cmake")
