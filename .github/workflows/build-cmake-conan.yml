@@ -13,7 +13,11 @@ jobs:
         event: [libuv, kqueue, epoll, gcd]
         exclude:
           - os: windows-latest
-            event: [kqueue, epoll, gcd]
+            event: kqueue
+          - os: windows-latest
+            event: epoll
+          - os: windows-latest
+            event: gcd
           - os: ubuntu-latest
             event: gcd
           - os: ubuntu-latest
