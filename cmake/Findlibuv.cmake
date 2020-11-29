@@ -8,7 +8,7 @@ if(PKG_CONFIG_FOUND)
     endif()
 endif()
 
-if(NOT WolfSSL_FOUND)
+if(NOT libuv_FOUND)
     find_path(libuv_INCLUDE_DIR uv.h)
     find_library(libuv_LIBRARY uv)
 
