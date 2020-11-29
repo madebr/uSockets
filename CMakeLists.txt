@@ -1,6 +1,10 @@
 cmake_minimum_required(VERSION 3.9)
 project(uSockets)
 
+if(CMAKE_C_COMPILER_ID MATCHES "GNU|Clang|AppleClang")
+    add_compile_options(-Wall)
+endif()
+
 # For now we need to link with C++ for OpenSSL support, but should be removed with time
 set(CMAKE_C_STANDARD 11)
 set(CMAKE_C_EXTENSIONS OFF)
@@ -66,6 +70,9 @@ add_library(uSockets
     src/eventing/epoll_kqueue.c
 )
 target_include_directories(uSockets PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src>)
+set_target_properties(uSockets PROPERTIES
+    DEFINE_SYMBOL LIBUS_DLL_BUILD
+)
 
 if(USOCKETS_CRYPTO STREQUAL "OPENSSL")
     find_package(OpenSSL REQUIRED)

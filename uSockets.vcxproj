@@ -35,7 +35,7 @@
   <ItemDefinitionGroup>
     <ClCompile>
       <AdditionalIncludeDirectories>src</AdditionalIncludeDirectories>
-      <PreprocessorDefinitions>LIBUS_NO_SSL</PreprocessorDefinitions>
+      <PreprocessorDefinitions>LIBUS_NO_SSL;LIBUS_DLL_BUILD</PreprocessorDefinitions>
     </ClCompile>
   </ItemDefinitionGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
