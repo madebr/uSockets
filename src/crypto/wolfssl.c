@@ -25,6 +25,7 @@
 
 #include <wolfssl/ssl.h>
 
+#include <stdlib.h>
 #include <string.h>
 
 // shared somewhat
@@ -111,15 +112,16 @@ struct us_internal_ssl_socket_t *ssl_on_close(struct us_internal_ssl_socket_t *s
     return context->on_close(s);
 }
 
-struct us_internal_ssl_socket_t *us_internal_ssl_socket_close(struct us_internal_ssl_socket_t *s) {
-    return (struct us_internal_ssl_socket_t *) us_socket_close(0, (struct us_socket_t *) s);
+struct us_internal_ssl_socket_t *us_internal_ssl_socket_close(struct us_internal_ssl_socket_t *s, int code, void *reason) {
+    return (struct us_internal_ssl_socket_t *) us_socket_close(0, (struct us_socket_t *) s, code, reason);
 }
 
 struct us_internal_ssl_socket_t *ssl_on_end(struct us_internal_ssl_socket_t *s) {
     //struct us_internal_ssl_socket_context_t *context = (struct us_internal_ssl_socket_context_t *) us_socket_context(0, &s->s);
 
+    /* Todo: this should report CLEANLY SHUTDOWN as reason */
     // whatever state we are in, a TCP FIN is always an answered shutdown
-    return us_internal_ssl_socket_close(s);
+    return us_internal_ssl_socket_close(s, 0, NULL);
 }
 
 // this whole function needs a complete clean-up
@@ -145,7 +147,8 @@ struct us_internal_ssl_socket_t *ssl_on_data(struct us_internal_ssl_socket_t *s,
             // two phase shutdown is complete here
             //printf("Two step SSL shutdown complete\n");
 
-            return us_internal_ssl_socket_close(s);
+            /* Todo: this should also report some kind of clean shutdown */
+            return us_internal_ssl_socket_close(s, 0, NULL);
         } else if (ret < 0) {
 
             int err = wolfSSL_get_error(s->ssl, ret);
@@ -180,13 +183,13 @@ struct us_internal_ssl_socket_t *ssl_on_data(struct us_internal_ssl_socket_t *s,
                 }
 
                 // terminate connection here
-                return us_internal_ssl_socket_close(s);
+                return us_internal_ssl_socket_close(s, 0, NULL);
             } else {
                 // emit the data we have and exit
 
                 // assume we emptied the input buffer fully or error here as well!
                 if (loop_ssl_data->ssl_read_input_length) {
-                    return us_internal_ssl_socket_close(s);
+                    return us_internal_ssl_socket_close(s, 0, NULL);
                 }
 
                 // cannot emit zero length to app
@@ -241,7 +244,7 @@ struct us_internal_ssl_socket_t *ssl_on_data(struct us_internal_ssl_socket_t *s,
         //exit(-2);
 
         // not correct anyways!
-        s = us_internal_ssl_socket_close(s);
+        s = us_internal_ssl_socket_close(s, 0, NULL);
 
         //us_
     }
