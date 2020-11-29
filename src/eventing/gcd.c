@@ -17,6 +17,7 @@
 
 #include "libusockets.h"
 #include "internal/internal.h"
+#include <stdio.h>
 #include <stdlib.h>
 
 #ifdef LIBUS_USE_GCD
