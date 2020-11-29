@@ -32,9 +32,9 @@ jobs:
           conan user
       - name: 'Set up directories'
         run: mkdir build && cd build
-      - name: "conan install"
+      - name: "conan install (download/build dependencies)"
         run: |
-          conan install "$GITHUB_WORKSPACE" -o crypto=${{ matrix.crypto}} -o event=${{ matrix.event }} --build missing
-      - name: "conan build"
+          conan install ${{ github.workspace }} -o crypto=${{ matrix.crypto}} -o event=${{ matrix.event }} --build missing
+      - name: "conan build (build uSockets)"
         run: |
-          conan build "$GITHUB_WORKSPACE"
+          conan build ${{ github.workspace }}
