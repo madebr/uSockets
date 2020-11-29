@@ -59,11 +59,15 @@ class USocketsConan(ConanFile):
         if self.options.crypto == "wolfssl":
             if not self.options["wolfssl"].opensslextra:
                 raise ConanInvalidConfiguration("uSockets requires wolfssl built with opensslextras")
+
+        if self.source_folder == self.build_folder:
+            raise RuntimeError("Cannot build with source_folder == build_folder ({} == {})".format(
+                self.source_folder, self.build_folder))
+
         tools.save(
             "CMakeLists.txt",
             textwrap.dedent(
                 """
-                
                 cmake_minimum_required(VERSION 3.0)
                 project(cmake_wrapper)
                 
