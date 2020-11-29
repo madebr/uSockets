@@ -56,8 +56,9 @@ class USocketsConan(ConanFile):
         self.build_requires("pkgconf/1.7.3")
 
     def build(self):
-        if not self.options["wolfssl"].opensslextra:
-            raise ConanInvalidConfiguration("uSockets requires wolfssl built with opensslextras")
+        if self.options.crypto == "wolfssl":
+            if not self.options["wolfssl"].opensslextra:
+                raise ConanInvalidConfiguration("uSockets requires wolfssl built with opensslextras")
         tools.save(
             "CMakeLists.txt",
             textwrap.dedent(
