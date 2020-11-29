@@ -1,7 +1,7 @@
 name: Build using system libraries (or brew)
 on:
   pull_request:
-  push:
+  # push: #FIXME (enable)
   release:
     types: published
 jobs:

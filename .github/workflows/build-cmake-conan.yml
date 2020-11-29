@@ -31,7 +31,7 @@ jobs:
         run: mkdir build && cd build
       - name: "conan install"
         run: |
-          conan install "$GITHUB_WORKSPACE" -o crypto=${{ matrix.crypto}} -o event=${{ matrix.event }}
+          conan install "$GITHUB_WORKSPACE" -o crypto=${{ matrix.crypto}} -o event=${{ matrix.event }} --build missing
       - name: "conan build"
         run: |
           conan build "$GITHUB_WORKSPACE"
