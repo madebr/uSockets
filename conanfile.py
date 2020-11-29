@@ -20,7 +20,7 @@ class USocketsConan(ConanFile):
         "fPIC": True,
         "crypto": "openssl",
         "event": "libuv",
-        "wofssl:opensslextra": True,
+        "wolfssl:opensslextra": True,
     }
 
     generators = "cmake", "pkg_config"
