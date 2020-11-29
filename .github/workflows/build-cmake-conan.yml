@@ -1,0 +1,37 @@
+name: Build using conan
+on:
+  pull_request:
+  push:
+  release:
+    types: published
+jobs:
+  build-cmake:
+    strategy:
+      matrix:
+        os: [windows-latest, ubuntu-latest, macos-latest]
+        crypto: [openssl, wolfssl, none]
+        event: [libuv, kqueue, epoll, gcd]
+        exclude:
+          - os: windows-latest
+            event: [kqueue, epoll, gcd]
+          - os: ubuntu-latest
+            event: gcd
+          - os: ubuntu-latest
+            event: kqueue
+          - os: macos-latest
+            event: epoll
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v2
+      - name: "Install conan"
+        run: |
+          python3 -m pip install conan
+          conan user
+      - name: 'Set up directories'
+        run: mkdir build && cd build
+      - name: "conan install"
+        run: |
+          conan install "$GITHUB_WORKSPACE" -o crypto=${{ matrix.crypto}} -o event=${{ matrix.event }}
+      - name: "conan build"
+        run: |
+          conan build "$GITHUB_WORKSPACE"
