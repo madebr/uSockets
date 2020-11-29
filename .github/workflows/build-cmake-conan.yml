@@ -9,7 +9,7 @@ jobs:
     strategy:
       matrix:
         os: [windows-latest, ubuntu-latest, macos-latest]
-        crypto: [openssl, wolfssl, none]
+        crypto: [openssl, wolfssl, None]
         event: [libuv, kqueue, epoll, gcd]
         exclude:
           - os: windows-latest
@@ -28,7 +28,7 @@ jobs:
           python-version: '3.x'
       - name: "Install conan"
         run: |
-          python3 -m pip install conan
+          python -m pip install conan
           conan user
       - name: 'Set up directories'
         run: mkdir build && cd build
