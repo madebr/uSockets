@@ -44,6 +44,6 @@ jobs:
       - name: 'Set up directories'
         run: mkdir build && cd build
       - name: 'Configure build'
-        run: cmake $GITHUB_WORKSPACE -DUSOCKETS_CRYPTO=${{ matrix.crypto }} -DUSOCKETS_EVENT=${{ matrix.event }}
+        run: cmake $GITHUB_WORKSPACE -DUSOCKETS_CRYPTO=${{ matrix.crypto }} -DUSOCKETS_EVENT=${{ matrix.event }} -DCMAKE_FIND_ROOT_PATH=/usr/local/opt
       - name: 'Build uSockets'
         run: cmake --build .
