@@ -246,7 +246,7 @@ struct us_socket_t *on_http_socket_timeout(struct us_socket_t *s) {
 }
 
 int main() {
-    srand(time(0));
+    srand((int)time(0));
     long_buffer = calloc(long_length, 1);
 
     struct us_loop_t *loop = us_create_loop(0, on_wakeup, on_pre, on_post, 0);
@@ -259,7 +259,8 @@ int main() {
 
 
     // these are ignored for non-SSL
-    struct us_socket_context_options_t options = {};
+    struct us_socket_context_options_t options;
+    memset(&options, 0, sizeof(struct us_socket_context_options_t));
     options.key_file_name = "/home/alexhultman/uWebSockets.js/misc/key.pem";
     options.cert_file_name = "/home/alexhultman/uWebSockets.js/misc/cert.pem";
     options.passphrase = "1234";

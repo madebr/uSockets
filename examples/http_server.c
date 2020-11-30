@@ -92,7 +92,8 @@ int main() {
 	struct us_loop_t *loop = us_create_loop(0, on_wakeup, on_pre, on_post, 0);
 
 	/* Create a socket context for HTTP */
-	struct us_socket_context_options_t options = {};
+	struct us_socket_context_options_t options;
+	memset(&options, 0, sizeof(struct us_socket_context_options_t));
 	options.key_file_name = "/home/alexhultman/uWebSockets.js/misc/key.pem";
 	options.cert_file_name = "/home/alexhultman/uWebSockets.js/misc/cert.pem";
 	options.passphrase = "1234";
@@ -105,7 +106,7 @@ int main() {
 
 	struct http_context *http_context_ext = (struct http_context *) us_socket_context_ext(SSL, http_context);
 	http_context_ext->response = (char *) malloc(128 + sizeof(body) - 1);
-	http_context_ext->length = snprintf(http_context_ext->response, 128 + sizeof(body) - 1, "HTTP/1.1 200 OK\r\nContent-Length: %ld\r\n\r\n%s", sizeof(body) - 1, body);
+	http_context_ext->length = snprintf(http_context_ext->response, 128 + sizeof(body) - 1, "HTTP/1.1 200 OK\r\nContent-Length: %zu\r\n\r\n%s", sizeof(body) - 1, body);
 
 	/* Set up event handlers */
 	us_socket_context_on_open(SSL, http_context, on_http_socket_open);

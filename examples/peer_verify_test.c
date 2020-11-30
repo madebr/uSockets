@@ -216,7 +216,7 @@ int expect_peer_verify(const char *test_name, bool expect_data_exchanged,
            client_options.cert_file_name,
            client_options.ca_file_name);
 
-    srand(time(0));
+    srand((int)time(0));
     server_received_data = false;
     client_received_data = false;
 
