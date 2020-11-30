@@ -43,4 +43,4 @@ jobs:
           conan build ${{ github.workspace }} -if build -bf build -pf package
       - name: "conan package (install uSockets)"
         run: |
-          conan package ${{ github.workspace }}
+          conan package ${{ github.workspace }} -if build -bf build -pf package
