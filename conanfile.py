@@ -87,5 +87,5 @@ class USocketsConan(ConanFile):
         cmake.build()
 
     def package(self):
-        cmake = CMake()
+        cmake = CMake(self)
         cmake.install()
