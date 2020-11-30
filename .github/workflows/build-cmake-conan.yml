@@ -37,7 +37,10 @@ jobs:
           conan config set log.print_run_commands=True
       - name: "conan install (download/build dependencies)"
         run: |
-          conan install ${{ github.workspace }} -if build -pf package -o crypto=${{ matrix.crypto}} -o event=${{ matrix.event }} --build missing
+          conan install ${{ github.workspace }} -if build  -o crypto=${{ matrix.crypto}} -o event=${{ matrix.event }} --build missing
       - name: "conan build (build uSockets)"
         run: |
-          conan build ${{ github.workspace }}
+          conan build ${{ github.workspace }} -if build -bf build -pf package
+      - name: "conan package (install uSockets)"
+        run: |
+          conan package ${{ github.workspace }}
