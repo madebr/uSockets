@@ -1,0 +1,16 @@
+list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_LIST_DIR}")
+
+set(USOCKETS_CRYPTO "@USOCKETS_CRYPTO@")
+set(USOCKETS_EVENT "@USOCKETS_EVENT@")
+
+if(USOCKETS_CRYPTO STREQUAL "OPENSSL")
+    find_package(OpenSSL REQUIRED)
+elseif(USOCKETS_CRYPTO STREQUAL "WOLFSSL")
+    find_package(WolfSSL REQUIRED)
+endif()
+
+if(USOCKETS_EVENT STREQUAL "LIBUV")
+    find_package(libuv REQUIRED)
+endif()
+
+include("${CMAKE_CURRENT_LIST_DIR}/uSockets-targets.cmake")
