@@ -22,7 +22,7 @@
 
 /* This module contains the entire WolfSSL implementation
  * of the SSL socket and socket context interfaces. */
-
+#include <wolfssl/options.h>
 #include <wolfssl/ssl.h>
 
 #include <stdlib.h>
@@ -64,6 +64,12 @@ struct us_internal_ssl_socket_context_t {
     struct us_internal_ssl_socket_t *(*on_open)(struct us_internal_ssl_socket_t *, int is_client, char *ip, int ip_length);
     struct us_internal_ssl_socket_t *(*on_data)(struct us_internal_ssl_socket_t *, char *data, int length);
     struct us_internal_ssl_socket_t *(*on_close)(struct us_internal_ssl_socket_t *);
+
+    /* Called for missing SNI hostnames, if not NULL */
+    void (*on_server_name)(struct us_internal_ssl_socket_context_t*, const char* hostname);
+
+    /* Pointer to sni tree, created when the context is created and freed likewise when freed */
+    void* sni;
 };
 
 // same here, should or shouldn't it contain s?
@@ -312,6 +318,10 @@ int ssl_ignore_data(struct us_internal_ssl_socket_t *s) {
 }
 
 /* Per-context functions */
+void* us_internal_ssl_socket_context_get_native_handle(struct us_internal_ssl_socket_context_t* context) {
+    return context->ssl_context;
+}
+
 struct us_internal_ssl_socket_context_t *us_internal_create_child_ssl_socket_context(struct us_internal_ssl_socket_context_t *context, int context_ext_size) {
     struct us_socket_context_options_t options = {0};
 
@@ -322,6 +332,20 @@ struct us_internal_ssl_socket_context_t *us_internal_create_child_ssl_socket_con
     child_context->is_parent = 0;
 
     return child_context;
+}
+
+/* We must NOT free a WOLFSSL_CTX with only SSL_CTX_free! Also free any password */
+void free_ssl_context(WOLFSSL_CTX* ssl_context) {
+    if (!ssl_context) {
+        return;
+    }
+
+    /* If we have set a password string, free it here */
+    void* password = wolfSSL_CTX_get_default_passwd_cb(ssl_context);
+    /* WolfSSL returns NULL if we have no set password */
+    free(password);
+
+    wolfSSL_CTX_free(ssl_context);
 }
 
 int UserReceive(WOLFSSL *ssl, char *dst, int length, void *ctx) {
@@ -359,70 +383,176 @@ int UserSend(WOLFSSL *ssl, char *src, int length, void *ctx) {
     return written;
 }
 
-struct us_internal_ssl_socket_context_t *us_internal_create_ssl_socket_context(struct us_loop_t *loop, int context_ext_size, struct us_socket_context_options_t options) {
+static WOLFSSL_CTX* create_ssl_context_from_options(struct us_socket_context_options_t options) {
+    WOLFSSL_CTX *ssl_context = wolfSSL_CTX_new(wolfTLSv1_2_server_method());
 
-    us_internal_init_loop_ssl_data(loop);
-
-    struct us_socket_context_options_t no_options = {0};
-
-    struct us_internal_ssl_socket_context_t *context = (struct us_internal_ssl_socket_context_t *) us_create_socket_context(0, loop, sizeof(struct us_internal_ssl_socket_context_t) + context_ext_size, no_options);
-
-    context->ssl_context = wolfSSL_CTX_new(wolfTLSv1_2_server_method());
-    context->is_parent = 1;
-    // only parent ssl contexts may need to ignore data
-    context->sc.ignore_data = (int (*)(struct us_socket_t *)) ssl_ignore_data;
-
-    wolfSSL_CTX_SetIORecv(context->ssl_context, UserReceive);
-    wolfSSL_CTX_SetIOSend(context->ssl_context, UserSend);
+    wolfSSL_CTX_SetIORecv(ssl_context, UserReceive);
+    wolfSSL_CTX_SetIOSend(ssl_context, UserSend);
 
     // options
-    wolfSSL_CTX_set_read_ahead(context->ssl_context, 1);
-    wolfSSL_CTX_set_mode(context->ssl_context, WOLFSSL_MODE_ACCEPT_MOVING_WRITE_BUFFER);
+    wolfSSL_CTX_set_read_ahead(ssl_context, 1);
+    wolfSSL_CTX_set_mode(ssl_context, WOLFSSL_MODE_ACCEPT_MOVING_WRITE_BUFFER);
 
     // this lowers performance a bit in benchmarks
     if (options.ssl_prefer_low_memory_usage) {
-       //SSL_CTX_set_mode(context->ssl_context, SSL_MODE_RELEASE_BUFFERS);
+        //SSL_CTX_set_mode(context->ssl_context, SSL_MODE_RELEASE_BUFFERS);
     }
 
     // these are going to be extended
     if (options.passphrase) {
-        wolfSSL_CTX_set_default_passwd_cb_userdata(context->ssl_context, (void *) options.passphrase);
-        wolfSSL_CTX_set_default_passwd_cb(context->ssl_context, passphrase_cb);
+        wolfSSL_CTX_set_default_passwd_cb_userdata(ssl_context, (void*)options.passphrase);
+        wolfSSL_CTX_set_default_passwd_cb(ssl_context, passphrase_cb);
     }
 
     if (options.cert_file_name) {
-        if (wolfSSL_CTX_use_certificate_chain_file(context->ssl_context, options.cert_file_name) != 1) {
+        if (wolfSSL_CTX_use_certificate_chain_file(ssl_context, options.cert_file_name) != 1) {
+            free_ssl_context(ssl_context);
             return 0;
         }
     }
 
     if (options.key_file_name) {
-        if (wolfSSL_CTX_use_PrivateKey_file(context->ssl_context, options.key_file_name, SSL_FILETYPE_PEM) != 1) {
+        if (wolfSSL_CTX_use_PrivateKey_file(ssl_context, options.key_file_name, SSL_FILETYPE_PEM) != 1) {
+            free_ssl_context(ssl_context);
             return 0;
         }
     }
 
     if (options.ca_file_name) {
-        WOLFSSL_STACK *ca_list;
+        WOLFSSL_STACK* ca_list;
         ca_list = wolfSSL_load_client_CA_file(options.ca_file_name);
-        if(ca_list == NULL) {
+        if (ca_list == NULL) {
+            free_ssl_context(ssl_context);
             return 0;
         }
-        wolfSSL_CTX_set_client_CA_list(context->ssl_context, ca_list);
-        if (wolfSSL_CTX_load_verify_locations(context->ssl_context, options.ca_file_name, NULL) != 1) {
+        wolfSSL_CTX_set_client_CA_list(ssl_context, ca_list);
+        if (wolfSSL_CTX_load_verify_locations(ssl_context, options.ca_file_name, NULL) != 1) {
+            free_ssl_context(ssl_context);
             return 0;
         }
-        wolfSSL_CTX_set_verify(context->ssl_context, SSL_VERIFY_PEER, NULL);
+        wolfSSL_CTX_set_verify(ssl_context, SSL_VERIFY_PEER, NULL);
     }
 
-    // saknar DH här
+    return ssl_context;
+}
+
+/* Todo: return error on failure? */
+void us_internal_ssl_socket_context_add_server_name(struct us_internal_ssl_socket_context_t* context, const char* hostname_pattern, struct us_socket_context_options_t options) {
+
+    /* Try and construct an SSL_CTX from options */
+    WOLFSSL_CTX* ssl_context = create_ssl_context_from_options(options);
+
+    /* We do not want to hold any nullptr's in our SNI tree */
+    if (ssl_context) {
+        if (sni_add(context->sni, hostname_pattern, ssl_context)) {
+            /* If we already had that name, ignore */
+            free_ssl_context(ssl_context);
+        }
+    }
+}
+
+void us_internal_ssl_socket_context_on_server_name(struct us_internal_ssl_socket_context_t* context, void (*cb)(struct us_internal_ssl_socket_context_t*, const char* hostname)) {
+    context->on_server_name = cb;
+}
+
+void us_internal_ssl_socket_context_remove_server_name(struct us_internal_ssl_socket_context_t* context, const char* hostname_pattern) {
+    /* The same thing must happen for sni_free, that's why we have a callback */
+    WOLFSSL_CTX* sni_node_ssl_context = (WOLFSSL_CTX*)sni_remove(context->sni, hostname_pattern);
+    free_ssl_context(sni_node_ssl_context);
+}
+
+/* Returns NULL or SSL_CTX. May call missing server name callback */
+WOLFSSL_CTX* resolve_context(struct us_internal_ssl_socket_context_t* context, const char* hostname) {
+
+    /* Try once first */
+    void* user = sni_find(context->sni, hostname);
+    if (!user) {
+        /* Emit missing hostname then try again */
+        if (!context->on_server_name) {
+            /* We have no callback registered, so fail */
+            return NULL;
+        }
+
+        context->on_server_name(context, hostname);
+
+        /* Last try */
+        user = sni_find(context->sni, hostname);
+    }
+
+    return user;
+}
+
+// arg is context
+static int sni_cb(WOLFSSL_CTX* ssl, int* al, void* arg) {
+    if (ssl) {
+        const char* hostname = wolfSSL_get_servername(ssl, WOLFSSL_SNI_HOST_NAME);
+        if (hostname && hostname[0]) {
+            /* Try and resolve (match) required hostname with what we have registered */
+            WOLFSSL_CTX* resolved_ssl_context = resolve_context((struct us_internal_ssl_socket_context_t*)arg, hostname);
+            if (resolved_ssl_context) {
+                //printf("Did find matching SNI context for hostname: <%s>!\n", hostname);
+                wolfSSL_set_SSL_CTX(ssl, resolved_ssl_context);
+            }
+            else {
+                /* Call a blocking callback notifying of missing context */
+            }
+
+        }
+
+        return SSL_TLSEXT_ERR_OK;
+    }
+
+    /* Can we even come here ever? */
+    return SSL_TLSEXT_ERR_NOACK;
+}
+
+struct us_internal_ssl_socket_context_t* us_internal_create_ssl_socket_context(struct us_loop_t* loop, int context_ext_size, struct us_socket_context_options_t options) {
+    /* If we haven't initialized the loop data yet, do so .
+     * This is needed because loop data holds shared OpenSSL data and
+     * the function is also responsible for initializing WolfSSL */
+    us_internal_init_loop_ssl_data(loop);
+
+    struct us_socket_context_options_t no_options = { 0 };
+
+    struct us_internal_ssl_socket_context_t* context = (struct us_internal_ssl_socket_context_t*)us_create_socket_context(0, loop, sizeof(struct us_internal_ssl_socket_context_t) + context_ext_size, no_options);
+
+    WOLFSSL_CTX* ssl_context = create_ssl_context_from_options(options);
+    if (!ssl_context) {
+        /* We simply fail early if we cannot even create the WolfSSL context */
+        return NULL;
+    }
+
+    /* I guess this is the only optional callback */
+    context->on_server_name = NULL;
+
+    context->ssl_context = ssl_context;
+    context->is_parent = 1;
+    // only parent ssl contexts may need to ignore data
+    context->sc.ignore_data = (int (*)(struct us_socket_t*)) ssl_ignore_data;
+
+    /* Parent contexts may use SNI */
+    wolfSSL_CTX_set_tlsext_servername_callback(context->ssl_context, sni_cb);
+    wolfSSL_CTX_set_servername_arg(context->ssl_context, context);
+
+    /* Also create the SNI tree */
+    context->sni = sni_new();
 
     return context;
+}
+
+/* Our destructor for hostnames, used below */
+void sni_hostname_destructor(void* user) {
+    /* Some nodes hold null, so this one must ignore this case */
+    free_ssl_context((WOLFSSL_CTX*)user);
 }
 
 void us_internal_ssl_socket_context_free(struct us_internal_ssl_socket_context_t *context) {
     if (context->is_parent) {
         wolfSSL_CTX_free(context->ssl_context);
+
+        /* Here we need to register a temporary callback for all still-existing hostnames
+         * and their contexts. Only parents have an SNI tree */
+        sni_free(context->sni, sni_hostname_destructor);
     }
 
     us_socket_context_free(0, &context->sc);
@@ -468,6 +598,9 @@ void *us_internal_ssl_socket_context_ext(struct us_internal_ssl_socket_context_t
 }
 
 /* Per socket functions */
+void *us_internal_ssl_socket_get_native_handle(struct us_internal_ssl_socket_t *s) {
+    return s->ssl;
+}
 
 int us_internal_ssl_socket_write(struct us_internal_ssl_socket_t *s, const char *data, int length, int msg_more) {
     if (us_socket_is_closed(0, &s->s) || us_internal_ssl_socket_is_shut_down(s)) {

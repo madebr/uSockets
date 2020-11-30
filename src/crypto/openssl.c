@@ -409,8 +409,7 @@ struct us_internal_ssl_socket_context_t *us_internal_create_child_ssl_socket_con
     return child_context;
 }
 
-/* Common function for creating a context from options.
- * We must NOT free a SSL_CTX with only SSL_CTX_free! Also free any password */
+/* We must NOT free a SSL_CTX with only SSL_CTX_free! Also free any password */
 void free_ssl_context(SSL_CTX *ssl_context) {
     if (!ssl_context) {
         return;
@@ -568,7 +567,7 @@ SSL_CTX *resolve_context(struct us_internal_ssl_socket_context_t *context, const
 }
 
 // arg is context
-int sni_cb(SSL *ssl, int *al, void *arg) {
+static int sni_cb(SSL *ssl, int *al, void *arg) {
 
     if (ssl) {
         const char *hostname = SSL_get_servername(ssl, TLSEXT_NAMETYPE_host_name);
