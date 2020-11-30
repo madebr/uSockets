@@ -20,7 +20,9 @@ class USocketsConan(ConanFile):
         "fPIC": True,
         "crypto": "openssl",
         "event": "libuv",
+        "wolfssl:opensslall": True,
         "wolfssl:opensslextra": True,
+        "wolfssl:sni": True,
     }
 
     generators = "cmake", "pkg_config", "cmake_find_package"
@@ -57,7 +59,7 @@ class USocketsConan(ConanFile):
 
     def build(self):
         if self.options.crypto == "wolfssl":
-            if not self.options["wolfssl"].opensslextra:
+            if not all((self.options["wolfssl"].opensslall, self.options["wolfssl"].sni)):
                 raise ConanInvalidConfiguration("uSockets requires wolfssl built with opensslextras")
 
         if self.source_folder == self.build_folder:
