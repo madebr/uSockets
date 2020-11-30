@@ -1,8 +1,13 @@
 cmake_minimum_required(VERSION 3.9)
 project(uSockets)
 
+include(GNUInstallDirs)
+set(USOCKETS_INSTALL_CMAKEDIR "${CMAKE_INSTALL_LIBDIR}/cmake/${PROJECT_NAME}" CACHE FILEPATH "Where to install cmake scripts")
+
 if(CMAKE_C_COMPILER_ID MATCHES "GNU|Clang|AppleClang")
     add_compile_options(-Wall)
+elseif(CMAKE_C_COMPILER_ID MATCHES "MSVC")
+    add_compile_definitions(_CRT_SECURE_NO_WARNINGS)
 endif()
 
 # For now we need to link with C++ for OpenSSL support, but should be removed with time
@@ -44,6 +49,7 @@ option(USOCKETS_ASAN "build with addres sanitizers")
 option(USOCKETS_EXAMPLES "build examples" ON)
 option(USOCKETS_LTO "build with LTO" ON)
 option(USOCKETS_PIC "build with PIC" ON)
+option(USOCKETS_INSTALL "ENABLE_EXPORTS uSockets installation" ON)
 
 if(NOT USOCKETS_CRYPTO IN_LIST USOCKETS_CRYPTO_BACKENDS)
     message(FATAL_ERROR "Illegal usocket crypto backend (${USOCKETS_CRYPTO})
@@ -69,7 +75,10 @@ add_library(uSockets
     src/eventing/gcd.c
     src/eventing/epoll_kqueue.c
 )
-target_include_directories(uSockets PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src>)
+target_include_directories(uSockets PUBLIC
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src>
+    $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
+)
 set_target_properties(uSockets PROPERTIES
     DEFINE_SYMBOL LIBUS_DLL_BUILD
 )
@@ -125,4 +134,25 @@ if(XCODE)
     enable_language(Swift)
     add_executable(swift_http_server examples/swift_http_server/main.swift)
     target_link_libraries(swift_http_server PRIVATE uSockets)
+endif()
+
+if(USOCKETS_INSTALL)
+    include(CMakePackageConfigHelpers)
+    configure_package_config_file(cmake/uSockets-config.cmake.in uSockets-config.cmake
+        INSTALL_DESTINATION "${USOCKETS_INSTALL_CMAKEDIR}"
+    )
+
+    install(TARGETS uSockets EXPORT uSockets
+        RUNTIME DESTINATION "${CMAKE_INSTALL_BINDIR}"
+        LIBRARY DESTINATION "${CMAKE_INSTALL_LIBDIR}"
+        ARCHIVE DESTINATION "${CMAKE_INSTALL_LIBDIR}"
+    )
+    install(FILES src/libusockets.h DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}")
+    install(EXPORT uSockets DESTINATION "${USOCKETS_INSTALL_CMAKEDIR}" NAMESPACE "uSockets::" FILE "uSockets-targets.cmake")
+    install(FILES
+        "${CMAKE_CURRENT_BINARY_DIR}/uSockets-config.cmake"
+        cmake/Findlibuv.cmake
+        cmake/FindWolfSSL.cmake
+        DESTINATION "${USOCKETS_INSTALL_CMAKEDIR}"
+    )
 endif()
