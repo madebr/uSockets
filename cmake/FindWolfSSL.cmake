@@ -1,27 +1,27 @@
 find_package(PkgConfig QUIET)
 if(PKG_CONFIG_FOUND)
-    pkg_check_modules(WolfSSL IMPORTED_TARGET "wolfssl")
-    if(TARGET PkgConfig::WolfSSL AND NOT TARGET libuv::libuv)
+    pkg_check_modules(wolfssl IMPORTED_TARGET "wolfssl")
+    if(TARGET PkgConfig::wolfssl AND NOT TARGET wolfssl::wolfssl)
         add_library(_wolfssl INTERFACE)
-        target_link_libraries(_wolfssl INTERFACE PkgConfig::WolfSSL)
-        add_library(WolfSSL::WolfSSL ALIAS _wolfssl)
+        target_link_libraries(_wolfssl INTERFACE PkgConfig::wolfssl)
+        add_library(wolfssl::wolfssl ALIAS _wolfssl)
     endif()
 endif()
 
-if(NOT WolfSSL_FOUND)
-    find_path(WolfSSL_INCLUDE_DIRS wolfssl/ssl.h)
-    find_library(WolfSSL_LIBRARY wolfssl)
+if(NOT wolfssl_FOUND)
+    find_path(wolfssl_INCLUDE_DIRS wolfssl/ssl.h)
+    find_library(wolfssl_LIBRARY wolfssl)
 
     include(FindPackageHandleStandardArgs)
-    find_package_handle_standard_args(WolfSSL
-        REQUIRED_VARS WolfSSL_INCLUDE_DIRS WolfSSL_LIBRARY
+    find_package_handle_standard_args(wolfssl
+        REQUIRED_VARS wolfssl_LIBRARY wolfssl_INCLUDE_DIRS
     )
 
-    if(NOT TARGET WolfSSL::WolfSSL)
-        add_library(WolfSSL::WolfSSL UNKNOWN IMPORTED)
-        set_target_properties(WolfSSL::WolfSSL PROPERTIES
-            IMPORTED_LOCATION "${WolfSSL_LIBRARY}"
-            INTERFACE_INCLUDE_DIRECTORIES "${WolfSSL_INCLUDE_DIRS}"
+    if(NOT TARGET wolfssl::wolfssl)
+        add_library(wolfssl::wolfssl UNKNOWN IMPORTED)
+        set_target_properties(wolfssl::wolfssl PROPERTIES
+            IMPORTED_LOCATION "${wolfssl_LIBRARY}"
+            INTERFACE_INCLUDE_DIRECTORIES "${wolfssl_INCLUDE_DIRS}"
         )
     endif()
 endif()

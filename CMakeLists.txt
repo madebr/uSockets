@@ -88,9 +88,9 @@ if(USOCKETS_CRYPTO STREQUAL "OPENSSL")
     target_compile_definitions(uSockets PUBLIC LIBUS_USE_OPENSSL)
     target_link_libraries(uSockets PRIVATE OpenSSL::SSL)
 elseif(USOCKETS_CRYPTO STREQUAL "WOLFSSL")
-    find_package(WolfSSL REQUIRED)
+    find_package(wolfssl REQUIRED)
     target_compile_definitions(uSockets PUBLIC LIBUS_USE_WOLFSSL)
-    target_link_libraries(uSockets PRIVATE WolfSSL::WolfSSL)
+    target_link_libraries(uSockets PRIVATE wolfssl::wolfssl)
 else()
     target_compile_definitions(uSockets PUBLIC LIBUS_NO_SSL)
 endif()
@@ -152,7 +152,7 @@ if(USOCKETS_INSTALL)
     install(FILES
         "${CMAKE_CURRENT_BINARY_DIR}/uSockets-config.cmake"
         cmake/Findlibuv.cmake
-        cmake/FindWolfSSL.cmake
+        cmake/Findwolfssl.cmake
         DESTINATION "${USOCKETS_INSTALL_CMAKEDIR}"
     )
 endif()
